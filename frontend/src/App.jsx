@@ -2,13 +2,14 @@ import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
 import Login from './Login';
 import Dashboard from './Dashboard';
 import AdminPanel from './AdminPanel';
+import EmployeeProfile from './EmployeeProfile';
+import SalaryManager from './SalaryManager';
+import AuditLogs from './AuditLogs'; // <--- Import added here
 
 function App() {
   const token = localStorage.getItem('authToken');
   const isLoggedIn = !!token;
-
-  // TEMPORARY: We'll fetch the user's role from the backend soon
-  const isAdmin = true; // For now, we assume you are an admin
+  const isAdmin = true; 
 
   return (
     <BrowserRouter>
@@ -21,8 +22,10 @@ function App() {
             isLoggedIn ? (
               <div>
                 <nav style={{ padding: '10px', borderBottom: '1px solid #555' }}>
-                  <Link to="/dashboard" style={{ marginRight: '15px' }}>Dashboard</Link>
-                  {isAdmin && <Link to="/admin">Admin Panel</Link>}
+                  <Link to="/dashboard" style={{ marginRight: '15px', color: 'white' }}>Dashboard</Link>
+                  <Link to="/admin" style={{ marginRight: '15px', color: 'white' }}>Admin Panel</Link>
+                  <Link to="/salary" style={{ marginRight: '15px', color: '#ff9800' }}>Salary</Link>
+                  <Link to="/audit-logs" style={{ marginRight: '15px', color: 'white' }}>Audit Logs</Link>
                 </nav>
                 <Dashboard />
               </div>
@@ -32,12 +35,10 @@ function App() {
           } 
         />
 
-        <Route 
-          path="/admin" 
-          element={
-            isLoggedIn && isAdmin ? <AdminPanel /> : <Navigate to="/dashboard" />
-          } 
-        />
+        <Route path="/admin" element={isLoggedIn && isAdmin ? <AdminPanel /> : <Navigate to="/dashboard" />} />
+        <Route path="/employee/:id" element={<EmployeeProfile />} />
+        <Route path="/salary" element={<SalaryManager />} />
+        <Route path="/audit-logs" element={<AuditLogs />} /> {/* <--- Route added here */}
       </Routes>
     </BrowserRouter>
   );
