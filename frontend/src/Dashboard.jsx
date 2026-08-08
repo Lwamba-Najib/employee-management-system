@@ -28,6 +28,8 @@ function Dashboard() {
   const [form, setForm] = useState({ ...emptyForm });
   const [photoFile, setPhotoFile] = useState(null);
   const [viewing, setViewing] = useState(null);
+  const [showPass, setShowPass] = useState(false);
+  const [passForm, setPassForm] = useState({ current_password: '', password: '', password_confirmation: '' });
   const token = localStorage.getItem('authToken');
 
   const load = async (p) => {
@@ -80,11 +82,12 @@ function Dashboard() {
     const isEdit = editingId !== null;
     const body = new FormData();
     Object.keys(form).forEach((k) => body.append(k, form[k]));
-       if (photoFile) body.append('photo', photoFile);
+    if (photoFile) body.append('photo', photoFile);
     if (isEdit) body.append('_method', 'PUT');
+
     try {
       const res = await fetch(API + (isEdit ? '/employees/' + editingId : '/employees'), {
-               method: 'POST',
+        method: 'POST',
         headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
         body,
       });
@@ -114,6 +117,39 @@ function Dashboard() {
     } catch (e) { alert('Error connecting to server.'); }
   };
 
+  const logout = async () => {
+    try {
+      await fetch(API + '/logout', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
+      });
+    } catch (e) {}
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userRole');
+    window.location.href = '/';
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(API + '/change-password', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token, Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(passForm),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        alert('Password changed successfully!');
+        setShowPass(false);
+        setPassForm({ current_password: '', password: '', password_confirmation: '' });
+      } else {
+        alert('Error: ' + (data.message || 'Could not change password'));
+      }
+    } catch (err) {
+      alert('Error connecting to server.');
+    }
+  };
+
   const exportCSV = async () => {
     const params = new URLSearchParams({ page: 1, per_page: 100000 });
     if (search) params.append('search', search);
@@ -135,11 +171,6 @@ function Dashboard() {
     a.click();
   };
 
-  const logout = () => {
-    localStorage.removeItem('authToken');
-    window.location.href = '/';
-  };
-
   const field = (label, name, type = 'text', required = false) => (
     <div>
       <label style={labelStyle}>{label}</label>
@@ -158,6 +189,7 @@ function Dashboard() {
           <button onClick={openCreate} style={btn('#2563eb')}>+ Add Employee</button>
           <button onClick={exportCSV} style={btn('#ea580c')}>Export CSV</button>
           <button onClick={() => load(page)} style={{ ...btn('#e2e8f0'), color: '#1e293b' }}>Refresh</button>
+          <button onClick={() => setShowPass(true)} style={{ ...btn('#e2e8f0'), color: '#1e293b' }}>Change Password</button>
           <button onClick={logout} style={btn('#dc2626')}>Logout</button>
         </div>
       </div>
@@ -329,7 +361,7 @@ function Dashboard() {
                 ['Date of Birth', viewing.date_of_birth],
                 ['National ID / Passport', viewing.national_id],
                 ['Employment Type', viewing.employment_type],
-                ['Date of Employment', viewing.date_0f_employment],
+                ['Date of Employment', viewing.date_of_employment],
                 ['Supervisor', viewing.supervisor],
                 ['Basic Salary', viewing.salary ? '$' + Number(viewing.salary).toLocaleString() : ''],
                 ['Bank Name', viewing.bank_name],
@@ -355,6 +387,23 @@ function Dashboard() {
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
               <button onClick={() => { openEdit(viewing); setViewing(null); }} style={{ padding: '8px 16px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Edit Employee</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showPass && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div style={{ background: '#fff', padding: '25px', borderRadius: '8px', width: '400px' }}>
+            <h2 style={{ marginTop: 0 }}>Change Password</h2>
+            <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <input type="password" placeholder="Current password" value={passForm.current_password} onChange={(e) => setPassForm({ ...passForm, current_password: e.target.value })} required style={inputStyle} />
+              <input type="password" placeholder="New password (min 8 chars)" value={passForm.password} onChange={(e) => setPassForm({ ...passForm, password: e.target.value })} required minLength={8} style={inputStyle} />
+              <input type="password" placeholder="Confirm new password" value={passForm.password_confirmation} onChange={(e) => setPassForm({ ...passForm, password_confirmation: e.target.value })} required style={inputStyle} />
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button type="button" onClick={() => setShowPass(false)} style={{ padding: '8px 16px', background: '#e2e8f0', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Cancel</button>
+                <button type="submit" style={btn('#2563eb')}>Update Password</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

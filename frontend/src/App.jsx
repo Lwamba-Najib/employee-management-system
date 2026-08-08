@@ -5,15 +5,17 @@ import Dashboard from './Dashboard';
 import SalaryManager from './SalaryManager';
 import AuditLogs from './AuditLogs';
 
-function Layout({ current, children }) {
+const API = 'http://127.0.0.1:8000/api';
+
+function Layout({ current, children, role }) {
   const link = (active) => ({ color: active ? '#2563eb' : '#64748b', fontWeight: active ? '600' : '400', textDecoration: 'none' });
   return (
     <div style={{ backgroundColor: '#f4f7fa', minHeight: '100vh' }}>
       <nav style={{ padding: '15px 30px', backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0', display: 'flex', gap: '20px' }}>
         <Link to="/dashboard" style={link(current === 'dashboard')}>Dashboard</Link>
-        <Link to="/admin" style={link(current === 'admin')}>Admin Panel</Link>
+        {role === 'admin' && <Link to="/admin" style={link(current === 'admin')}>Admin Panel</Link>}
         <Link to="/salary" style={link(current === 'salary')}>Salary</Link>
-        <Link to="/audit-logs" style={link(current === 'audit')}>Audit Logs</Link>
+        {role === 'admin' && <Link to="/audit-logs" style={link(current === 'audit')}>Audit Logs</Link>}
       </nav>
       <div style={{ padding: '20px' }}>{children}</div>
     </div>
@@ -30,7 +32,7 @@ function AdminPanel() {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/users', {
+      const res = await fetch(API + '/users', {
         headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' },
       });
       if (res.ok) {
@@ -68,7 +70,7 @@ function AdminPanel() {
         ? { name: formData.name, email: formData.email, role: formData.role, ...(formData.password ? { password: formData.password } : {}) }
         : { ...formData, password_confirmation: formData.password };
 
-      const res = await fetch('http://127.0.0.1:8000/api/' + (isEdit ? 'users/' + editingId : 'register'), {
+      const res = await fetch(API + (isEdit ? '/users/' + editingId : '/register'), {
         method: isEdit ? 'PUT' : 'POST',
         headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify(body),
@@ -91,7 +93,7 @@ function AdminPanel() {
   const handleDelete = async (user) => {
     if (!window.confirm('Delete ' + user.name + ' (' + user.email + ')?')) return;
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/users/' + user.id, {
+      const res = await fetch(API + '/users/' + user.id, {
         method: 'DELETE',
         headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' },
       });
@@ -132,7 +134,7 @@ function AdminPanel() {
               <td style={{ padding: '12px' }}>{user.id}</td>
               <td style={{ padding: '12px' }}>{user.name}</td>
               <td style={{ padding: '12px' }}>{user.email}</td>
-              <td><span style={{ background: '#eff6ff', color: '#2563eb', padding: '4px 8px', borderRadius: '4px' }}>{user.role || 'user'}</span></td>
+              <td><span style={{ background: user.role === 'admin' ? '#fef3c7' : '#eff6ff', color: user.role === 'admin' ? '#d97706' : '#2563eb', padding: '4px 8px', borderRadius: '4px' }}>{user.role || 'user'}</span></td>
               <td>
                 <button onClick={() => openEdit(user)} style={{ marginRight: '10px', padding: '4px 8px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer' }}>Edit</button>
                 <button onClick={() => handleDelete(user)} style={{ padding: '4px 8px', color: '#dc2626', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '4px', cursor: 'pointer' }}>Delete</button>
@@ -168,15 +170,32 @@ function AdminPanel() {
 
 function App() {
   const isLoggedIn = !!localStorage.getItem('authToken');
+  const [role, setRole] = useState(localStorage.getItem('userRole') || '');
+
+  useEffect(() => {
+    const t = localStorage.getItem('authToken');
+    if (!t) return;
+    fetch(API + '/user', {
+      headers: { Authorization: 'Bearer ' + t, Accept: 'application/json' },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d && d.user) {
+          localStorage.setItem('userRole', d.user.role || 'user');
+          setRole(d.user.role || 'user');
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={isLoggedIn ? <Navigate to="/dashboard" /> : <Login />} />
-        <Route path="/dashboard" element={isLoggedIn ? <Layout current="dashboard"><Dashboard /></Layout> : <Navigate to="/" />} />
-        <Route path="/admin" element={isLoggedIn ? <Layout current="admin"><AdminPanel /></Layout> : <Navigate to="/" />} />
-        <Route path="/salary" element={isLoggedIn ? <Layout current="salary"><SalaryManager /></Layout> : <Navigate to="/" />} />
-        <Route path="/audit-logs" element={isLoggedIn ? <Layout current="audit"><AuditLogs /></Layout> : <Navigate to="/" />} />
+        <Route path="/dashboard" element={isLoggedIn ? <Layout current="dashboard" role={role}><Dashboard /></Layout> : <Navigate to="/" />} />
+        <Route path="/admin" element={!isLoggedIn ? <Navigate to="/" /> : role === 'user' ? <Navigate to="/dashboard" /> : <Layout current="admin" role={role}><AdminPanel /></Layout>} />
+        <Route path="/salary" element={isLoggedIn ? <Layout current="salary" role={role}><SalaryManager /></Layout> : <Navigate to="/" />} />
+        <Route path="/audit-logs" element={!isLoggedIn ? <Navigate to="/" /> : role === 'user' ? <Navigate to="/dashboard" /> : <Layout current="audit" role={role}><AuditLogs /></Layout>} />
       </Routes>
     </BrowserRouter>
   );
