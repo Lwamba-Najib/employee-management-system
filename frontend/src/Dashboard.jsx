@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 
-const API = 'http://127.0.0.1:8000/api';
+const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+const STORAGE = import.meta.env.VITE_STORAGE_URL || 'http://127.0.0.1:8000/storage/';
 
 const emptyForm = {
   employee_number: '', first_name: '', last_name: '', gender: '', date_of_birth: '',
@@ -231,7 +232,7 @@ function Dashboard() {
                 <td style={{ padding: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {emp.photo
-                      ? <img src={'http://127.0.0.1:8000/storage/' + emp.photo} alt="" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
+                                            ? <img src={STORAGE + emp.photo} alt="" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
                       : <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>{(emp.name || '?').charAt(0)}</div>}
                     <span>{emp.name || (emp.first_name + ' ' + emp.last_name)}</span>
                   </div>
@@ -344,7 +345,7 @@ function Dashboard() {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px' }}>
               {viewing.photo
-                ? <img src={'http://127.0.0.1:8000/storage/' + viewing.photo} alt="" style={{ width: '72px', height: '72px', borderRadius: '50%', objectFit: 'cover' }} />
+                               ? <img src={STORAGE + viewing.photo} alt="" style={{ width: '72px', height: '72px', borderRadius: '50%', objectFit: 'cover' }} />
                 : <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px' }}>{(viewing.name || '?').charAt(0)}</div>}
               <div>
                 <div style={{ fontSize: '20px', fontWeight: '700' }}>{viewing.name}</div>

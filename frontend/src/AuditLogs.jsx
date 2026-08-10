@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const API = 'http://127.0.0.1:8000/api';
+const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
 const inputStyle = { padding: '8px', border: '1px solid #e2e8f0', borderRadius: '6px', boxSizing: 'border-box' };
 const labelStyle = { fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' };
