@@ -8,6 +8,7 @@ function Login() {
   const [message, setMessage] = useState('');
   const [showForgot, setShowForgot] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
+  const [codesent, setCodeSent] = useState (false);
   const [resetCode, setResetCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -51,11 +52,18 @@ function Login() {
       const data = await response.json();
 
       if (response.ok) {
-        setForgotMessage('Reset code sent to your email! Check your inbox.');
+        setCodeSent(true);
+        setForgotMessage(
+          data.reset_code
+            ? 'Reset code generated. DEV code: ' + data.reset_code
+            : 'Reset code sent to your email! Check your inbox.'
+        );
       } else {
+        setCodeSent(false);
         setForgotMessage('Error: ' + (data.message || 'Could not send reset code'));
       }
     } catch (error) {
+      setCodeSent(false);
       setForgotMessage('Error connecting to server.');
     }
   };
@@ -142,7 +150,7 @@ function Login() {
       {showForgot && (
         <div style={{ marginTop: '30px', padding: '20px', background: '#f8fafc', borderRadius: '8px', textAlign: 'left' }}>
           <h3 style={{ marginTop: 0 }}>Reset Password</h3>
-          {!resetCode ? (
+          {!codesent ? (
             <form onSubmit={handleForgotPassword} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <label style={{ fontSize: '14px', color: '#64748b' }}>Email Address</label>
               <input
