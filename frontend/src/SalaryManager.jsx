@@ -145,26 +145,7 @@ function SalaryManager() {
     } catch (e) { alert('Error connecting to server.'); }
   };
 
-  const exportCSV = async () => {
-    const params = new URLSearchParams({ page: 1, per_page: 100000 });
-    if (search) params.append('search', search);
-    if (fMonth) params.append('month', fMonth);
-    if (fYear) params.append('year', fYear);
-    if (fStatus) params.append('status', fStatus);
-    const res = await fetch(API + '/salaries?' + params.toString(), {
-      headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
-    });
-    if (!res.ok) return alert('Export failed');
-    const data = await res.json();
-    const rows = data.salaries || [];
-    const cols = ['id','employee_number','employee_name','payroll_month','payroll_year','basic_salary','housing_allowance','transport_allowance','medical_allowance','other_allowances','bonus','paye','nssf_deduction','loan_deduction','other_deductions','gross_salary','net_salary','payment_date','payment_status'];
-    const esc = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-    const csv = [cols.join(',')].concat(rows.map((r) => cols.map((c) => esc(r[c])).join(','))).join('\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    a.download = 'salaries.csv';
-    a.click();
-  };
+  
 
   const field = (label, name, type = 'number') => (
     <div>
@@ -182,7 +163,6 @@ function SalaryManager() {
         <h1>Salary Management</h1>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <button onClick={openCreate} style={btn('#2563eb')}>+ Create Salary Record</button>
-          <button onClick={exportCSV} style={btn('#ea580c')}>Export CSV</button>
           <button onClick={() => load(page)} style={{ ...btn('#e2e8f0'), color: '#1e293b' }}>Refresh</button>
         </div>
       </div>

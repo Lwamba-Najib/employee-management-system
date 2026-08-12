@@ -151,25 +151,73 @@ function Dashboard() {
     }
   };
 
-  const exportCSV = async () => {
+  const exportPDF = async () => {
     const params = new URLSearchParams({ page: 1, per_page: 100000 });
     if (search) params.append('search', search);
     if (fDepartment) params.append('department', fDepartment);
     if (fDesignation) params.append('designation', fDesignation);
     if (fStatus) params.append('status', fStatus);
+    
     const res = await fetch(API + '/employees?' + params.toString(), {
       headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
     });
     if (!res.ok) return alert('Export failed');
+    
     const data = await res.json();
     const rows = data.employees || [];
-    const cols = ['id','employee_number','first_name','last_name','gender','date_of_birth','national_id','phone','email','address','department','position','employment_type','date_of_employment','salary','supervisor','bank_name','bank_account_number','tin','nssf_number','status'];
-    const esc = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-    const csv = [cols.join(',')].concat(rows.map((r) => cols.map((c) => esc(r[c])).join(','))).join('\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    a.download = 'employees.csv';
-    a.click();
+    const totalSalary = rows.reduce((sum, r) => sum + Number(r.salary || 0), 0);
+    const activeCount = rows.filter(r => r.status === 'Active').length;
+    
+    const filters = [
+      search ? `Search: "${search}"` : null,
+      fDepartment ? `Department: ${fDepartment}` : null,
+      fDesignation ? `Designation: ${fDesignation}` : null,
+      fStatus ? `Status: ${fStatus}` : null,
+    ].filter(Boolean).join(' · ');
+
+    const w = window.open('', '_blank');
+    w.document.write(`
+      <html><head><title>Employee Report</title>
+      <style>
+        body { font-family: system-ui, -apple-system, sans-serif; padding: 24px; color: #1e293b; }
+        h1 { margin: 0 0 6px; font-size: 22px; }
+        .meta { color: #64748b; font-size: 13px; margin-bottom: 18px; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        th { background: #1e293b; color: #fff; padding: 8px; text-align: left; }
+        td { padding: 7px 8px; border-bottom: 1px solid #e2e8f0; }
+        tr:nth-child(even) td { background: #f8fafc; }
+        .active { color: #16a34a; } .inactive { color: #dc2626; }
+        .summary { margin-top: 20px; padding: 14px; background: #f1f5f9; border-radius: 8px; font-size: 14px; }
+        @media print { button { display: none; } }
+      </style></head><body>
+      <h1>Employee Report</h1>
+      <div class="meta">Generated ${new Date().toLocaleString()} · ${rows.length} records${filters ? ' · ' + filters : ''}</div>
+      <table>
+        <thead><tr>
+          <th>Emp #</th><th>Name</th><th>Email</th><th>Department</th><th>Position</th><th>Type</th><th>Salary</th><th>Status</th>
+        </tr></thead>
+        <tbody>${rows.map(r => `
+          <tr>
+            <td>${r.employee_number || '—'}</td>
+            <td>${r.name || (r.first_name + ' ' + r.last_name)}</td>
+            <td>${r.email}</td>
+            <td>${r.department || '—'}</td>
+            <td>${r.position || '—'}</td>
+            <td>${r.employment_type || '—'}</td>
+            <td>$${Number(r.salary || 0).toLocaleString()}</td>
+            <td class="${r.status === 'Active' ? 'active' : 'inactive'}">${r.status}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      <div class="summary">
+        <b>Total Employees:</b> ${rows.length} &nbsp; | &nbsp;
+        <b>Active:</b> ${activeCount} &nbsp; | &nbsp;
+        <b>Total Monthly Payroll:</b> $${totalSalary.toLocaleString()}
+      </div>
+      <p style="margin-top:30px"><button onclick="window.print()" style="padding:10px 20px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer;">🖨️ Print / Save as PDF</button></p>
+      </body></html>
+    `);
+    w.document.close();
   };
 
   const field = (label, name, type = 'text', required = false) => (
@@ -188,7 +236,7 @@ function Dashboard() {
         <h1>Employee Dashboard</h1>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <button onClick={openCreate} style={btn('#2563eb')}>+ Add Employee</button>
-          <button onClick={exportCSV} style={btn('#ea580c')}>Export CSV</button>
+          <button onClick={exportPDF} style={btn('#dc2626')}>Export PDF</button>
           <button onClick={() => load(page)} style={{ ...btn('#e2e8f0'), color: '#1e293b' }}>Refresh</button>
           <button onClick={() => setShowPass(true)} style={{ ...btn('#e2e8f0'), color: '#1e293b' }}>Change Password</button>
           <button onClick={logout} style={btn('#dc2626')}>Logout</button>

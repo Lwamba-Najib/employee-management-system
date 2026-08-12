@@ -83,7 +83,7 @@ function Login() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: forgotEmail,
-          token: resetCode,
+          token: codeSent,
           password: newPassword,
           password_confirmation: confirmPassword,
         }),
