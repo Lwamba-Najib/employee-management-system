@@ -257,8 +257,8 @@ export default function App() {
       .catch(() => { localStorage.removeItem('authToken'); localStorage.removeItem('userRole'); setAuthed(false); });
   }, []);
 
-  const guard = (el) => (authed ? el : <Navigate to="/login" />);
-  const adminOnly = (el) => (authed && role === 'admin' ? el : <Navigate to="/dashboard" />);
+    const guard = (el) => (localStorage.getItem('authToken') ? el : <Navigate to="/login" />);
+  const adminOnly = (el) => (localStorage.getItem('authToken') && localStorage.getItem('userRole') === 'admin' ? el : <Navigate to="/dashboard" />);
 
   return (
     <HashRouter>
@@ -268,7 +268,7 @@ export default function App() {
         <Route path="/salary" element={guard(<Shell role={role}><SalaryManager /></Shell>)} />
         <Route path="/admin" element={adminOnly(<Shell role={role}><AdminPanel /></Shell>)} />
         <Route path="/audit" element={adminOnly(<Shell role={role}><AuditLogs /></Shell>)} />
-        <Route path="*" element={<Navigate to={authed ? '/dashboard' : '/login'} />} />
+        <Route path="*" element={<Navigate to={localStorage.getItem('authToken') ? '/dashboard' : '/login'} />} />
       </Routes>
     </HashRouter>
   );
