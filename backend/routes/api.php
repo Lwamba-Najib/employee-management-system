@@ -10,6 +10,7 @@ use App\Services\AuditLogger;
 
 // Public Routes
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/login', fn () => response()->json(['message' => 'Unauthenticated.'], 401))->name('login');
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
