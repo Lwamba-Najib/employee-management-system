@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import Dashboard from './Dashboard';
 import SalaryManager from './SalaryManager';
 import AuditLogs from './AuditLogs';
@@ -38,7 +38,7 @@ function Shell({ role, children }) {
   const logout = async () => {
     try { await fetch(API + '/logout', { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }); } catch (e) {}
     localStorage.removeItem('authToken'); localStorage.removeItem('userRole');
-    window.location.href = '/login';
+    window.location.href = '/';
   };
 
   const links = [
@@ -261,7 +261,7 @@ export default function App() {
   const adminOnly = (el) => (authed && role === 'admin' ? el : <Navigate to="/dashboard" />);
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={guard(<Shell role={role}><Dashboard /></Shell>)} />
@@ -270,6 +270,6 @@ export default function App() {
         <Route path="/audit" element={adminOnly(<Shell role={role}><AuditLogs /></Shell>)} />
         <Route path="*" element={<Navigate to={authed ? '/dashboard' : '/login'} />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
