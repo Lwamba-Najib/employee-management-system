@@ -30,7 +30,8 @@ function Login() {
         localStorage.setItem('authToken', data.token);
         localStorage.setItem('userRole', data.user?.role || 'user');
         setMessage('Login successful! Redirecting...');
-        window.location.href = '/#/dashboard';
+        window.location.hash = '#/dashboard';
+        window.location.reload();
       } else {
         setMessage('Error: ' + (data.message || 'Invalid credentials'));
       }
