@@ -3,10 +3,10 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\SalaryController;
-use Illuminate\Support\Facades\Route;
+use App\Services\AuditLogger;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use App\Services\AuditLogger;
+use Illuminate\Support\Facades\Route;
 
 // Public Routes
 Route::post('/login', [AuthController::class, 'login']);
@@ -45,23 +45,27 @@ Route::middleware('auth:sanctum')->group(function () use ($requireAdmin) {
     Route::delete('/salaries/{id}', [SalaryController::class, 'destroy']);
 
     // ADMIN-ONLY: User management
-        Route::get('/users', function () use ($requireAdmin) {
+    Route::get('/users', function () use ($requireAdmin) {
         $deny = $requireAdmin();
         if ($deny) return $deny;
 
         $query = DB::table('users');
 
-        if (request()->filled('role')) $query->where('role', request()->query('role'));
-        if (request()->filled('status')) $query->where('status', request()->query('status'));
+        if (request()->filled('role')) {
+            $query->where('role', request()->query('role'));
+        }
+        if (request()->filled('status')) {
+            $query->where('status', request()->query('status'));
+        }
         if (request()->filled('search')) {
             $s = request()->query('search');
             $query->where(function ($q) use ($s) {
-                $q->where('name', 'like', "%$s%")
-                  ->orWhere('email', 'like', "%$s%")
-                  ->orWhere('username', 'like', "%$s%")
-                  ->orWhere('first_name', 'like', "%$s%")
-                  ->orWhere('last_name', 'like', "%$s%")
-                  ->orWhere('phone', 'like', "%$s%");
+                $q->where('name', 'like', "%{$s}%")
+                  ->orWhere('email', 'like', "%{$s}%")
+                  ->orWhere('username', 'like', "%{$s}%")
+                  ->orWhere('first_name', 'like', "%{$s}%")
+                  ->orWhere('last_name', 'like', "%{$s}%")
+                  ->orWhere('phone', 'like', "%{$s}%");
             });
         }
 
@@ -73,12 +77,24 @@ Route::middleware('auth:sanctum')->group(function () use ($requireAdmin) {
         if ($deny) return $deny;
 
         $user = DB::table('users')->where('id', $id)->first();
-
         if (!$user) {
             return response()->json(['message' => 'User not found'], 404);
         }
 
-                $data = request()->only(['name', 'email', 'role', 'first_name', 'last_name', 'username', 'phone', 'status']);
+        // validate the incoming payload
+        request()->validate([
+            'email' => 'nullable|email|max:255',
+            'name' => 'nullable|string|max:255',
+            'first_name' => 'nullable|string|max:100',
+            'last_name' => 'nullable|string|max:100',
+            'username' => 'nullable|string|max:100',
+            'phone' => 'nullable|string|max:30',
+            'role' => 'nullable|in:admin,user',
+            'status' => 'nullable|in:Active,Inactive',
+            'password' => 'nullable|string|min:8|confirmed',
+        ]);
+
+        $data = request()->only(['name', 'email', 'role', 'first_name', 'last_name', 'username', 'phone', 'status']);
 
         if (request()->filled('password')) {
             $data['password'] = Hash::make(request('password'));
@@ -97,9 +113,14 @@ Route::middleware('auth:sanctum')->group(function () use ($requireAdmin) {
         if ($deny) return $deny;
 
         $user = DB::table('users')->where('id', $id)->first();
+        if (!$user) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+
+        // wipe their tokens before removing the user
         DB::table('personal_access_tokens')->where('tokenable_id', $id)->delete();
         DB::table('users')->where('id', $id)->delete();
-        AuditLogger::log('Users', 'Deleted', $id, $user->name ?? null);
+        AuditLogger::log('Users', 'Deleted', $id, $user->name);
 
         return response()->json(['message' => 'User deleted successfully']);
     });
@@ -114,10 +135,10 @@ Route::middleware('auth:sanctum')->group(function () use ($requireAdmin) {
         if (request()->filled('search')) {
             $s = request()->query('search');
             $query->where(function ($q) use ($s) {
-                $q->where('user_name', 'like', '%' . $s . '%')
-                  ->orWhere('module', 'like', '%' . $s . '%')
-                  ->orWhere('action', 'like', '%' . $s . '%')
-                  ->orWhere('record_label', 'like', '%' . $s . '%');
+                $q->where('user_name', 'like', "%{$s}%")
+                  ->orWhere('module', 'like', "%{$s}%")
+                  ->orWhere('action', 'like', "%{$s}%")
+                  ->orWhere('record_label', 'like', "%{$s}%");
             });
         }
         if (request()->filled('user')) $query->where('user_name', request()->query('user'));
@@ -127,19 +148,29 @@ Route::middleware('auth:sanctum')->group(function () use ($requireAdmin) {
         if (request()->filled('to')) $query->whereDate('created_at', '<=', request()->query('to'));
 
         $total = $query->count();
-        $perPage = max(1, (int) request()->query('per_page', 10));
+        $perPage = min(max(1, (int) request()->query('per_page', 10)), 100);
         $page = max(1, (int) request()->query('page', 1));
 
-        $logs = $query->orderByDesc('id')->skip(($page - 1) * $perPage)->take($perPage)->get();
+        $logs = $query->orderByDesc('id')
+            ->skip(($page - 1) * $perPage)
+            ->take($perPage)
+            ->get();
+
+        // grab the dropdown options once
+        $filterOptions = [
+            'users' => DB::table('audit_logs')->distinct()->pluck('user_name')->filter()->values(),
+            'modules' => DB::table('audit_logs')->distinct()->pluck('module')->filter()->values(),
+            'actions' => DB::table('audit_logs')->distinct()->pluck('action')->filter()->values(),
+        ];
 
         return response()->json([
             'logs' => $logs,
             'total' => $total,
             'page' => $page,
             'per_page' => $perPage,
-            'users' => DB::table('audit_logs')->distinct()->pluck('user_name')->filter()->values(),
-            'modules' => DB::table('audit_logs')->distinct()->pluck('module')->filter()->values(),
-            'actions' => DB::table('audit_logs')->distinct()->pluck('action')->filter()->values(),
+            'users' => $filterOptions['users'],
+            'modules' => $filterOptions['modules'],
+            'actions' => $filterOptions['actions'],
         ]);
     });
 });
