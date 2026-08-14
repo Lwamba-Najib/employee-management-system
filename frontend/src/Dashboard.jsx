@@ -237,7 +237,7 @@ function Dashboard() {
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <button onClick={openCreate} style={btn('#2563eb')}>+ Add Employee</button>
           <button onClick={exportPDF} style={btn('#dc2626')}>Export PDF</button>
-          <button onClick={() => load(page)} style={{ ...btn('#e2e8f0'), color: '#1e293b' }}>Refresh</button>
+                  <button onClick={async (e) => { const b = e.currentTarget; b.textContent = 'Refreshing…'; b.disabled = true; await load(page); b.disabled = false; b.textContent = '✓ Refreshed'; setTimeout(() => (b.textContent = 'Refresh'), 1200); }} style={{ ...btn('#e2e8f0'), color: '#1e293b' }}>Refresh</button>
           <button onClick={() => setShowPass(true)} style={{ ...btn('#e2e8f0'), color: '#1e293b' }}>Change Password</button>
           <button onClick={logout} style={btn('#dc2626')}>Logout</button>
         </div>
