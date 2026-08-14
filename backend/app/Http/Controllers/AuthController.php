@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -143,13 +144,11 @@ class AuthController extends Controller
         );
 
         AuditLogger::log('Auth', 'Forgot Password', $user->id, $user->name, null, null, 'Success');
+        Mail::raw("Your Employee Management System password reset code is: $token", function ($m) use ($user) {
+            $m->to($user->email)->subject('Password Reset Code');
+        });
 
-        // In production, email this. In dev, return it so you can test.
-        return response()->json([
-            'message' => 'Reset code generated.',
-            'reset_code' => $token, // Remove in production — email it instead
-        ]);
-    }
+        return response()->json(['message' => 'Reset code sent to your email!']);    }
 
     public function resetPassword(Request $request)
     {
