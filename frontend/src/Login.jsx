@@ -86,7 +86,7 @@ function Login() {
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({
           email: forgotEmail,
-          token: codeSent,
+          token: resetSent,
           password: newPassword,
           password_confirmation: confirmPassword,
         }),
