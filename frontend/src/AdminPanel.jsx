@@ -1,242 +1,373 @@
 import { useState, useEffect } from 'react';
 
+const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+
+const emptyForm = {
+  first_name: '',
+  last_name: '',
+  username: '',
+  email: '',
+  phone: '',
+  role: 'user',
+  status: 'Active',
+  password: '',
+  password_confirmation: '',
+};
+
+const inputStyle = {
+  padding: '8px',
+  border: '1px solid #cbd5e1',
+  borderRadius: '6px',
+  fontSize: '14px',
+  width: '100%',
+  boxSizing: 'border-box',
+};
+
+const btn = (bg) => ({
+  padding: '8px 14px',
+  background: bg,
+  color: '#fff',
+  border: 'none',
+  borderRadius: '6px',
+  cursor: 'pointer',
+  fontSize: '13px',
+});
+
 function AdminPanel() {
   const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [editingUser, setEditingUser] = useState(null); // Track which user is being edited
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    password_confirmation: '',
-    role: 'user'
-  });
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [modal, setModal] = useState(null); // 'create' or the user being edited
+  const [form, setForm] = useState(emptyForm);
+  const [error, setError] = useState('');
 
-  const fetchUsers = async () => {
-    setLoading(true);
-    const token = localStorage.getItem('authToken');
+  const authHeaders = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${localStorage.getItem('authToken')}`,
+  };
 
-    try {
-      const response = await fetch('http://localhost:8000/api/users', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+  const load = async () => {
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (roleFilter) params.set('role', roleFilter);
+    if (statusFilter) params.set('status', statusFilter);
 
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data);
-      } else {
-        console.error('Failed to fetch users');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
-    }
+    const res = await fetch(`${API}/users?${params}`, {
+      headers: { Authorization: authHeaders.Authorization },
+    });
+
+    if (res.ok) setUsers(await res.json());
   };
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    load();
+  }, [search, roleFilter, statusFilter]);
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const openCreate = () => {
+    setForm(emptyForm);
+    setError('');
+    setModal('create');
   };
 
-  // Open Modal for Creating
-  const openCreateModal = () => {
-    setEditingUser(null);
-    setFormData({
-      name: '', email: '', password: '', password_confirmation: '', role: 'user'
+  const openEdit = (u) => {
+    setForm({
+      ...emptyForm,
+      first_name: u.first_name || '',
+      last_name: u.last_name || '',
+      username: u.username || '',
+      email: u.email,
+      phone: u.phone || '',
+      role: u.role,
+      status: u.status || 'Active',
     });
-    setShowModal(true);
+    setError('');
+    setModal(u);
   };
 
-  // Open Modal for Editing
-  const openEditModal = (user) => {
-    setEditingUser(user.id);
-    setFormData({
-      name: user.name,
-      email: user.email,
-      password: '', // Password is empty for edit
-      password_confirmation: '',
-      role: user.role || 'user'
-    });
-    setShowModal(true);
-  };
-
-  const handleSubmit = async (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('authToken');
-    
-    // Determine URL and Method based on whether we are editing or creating
-    const url = editingUser 
-      ? `http://localhost:8000/api/users/${editingUser}` 
-      : 'http://localhost:8000/api/register';
-    const method = editingUser ? 'PUT' : 'POST';
+    setError('');
 
-    try {
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
+    const name = `${form.first_name} ${form.last_name}`.trim() || form.username || form.email;
+    let res;
+
+    if (modal === 'create') {
+      res = await fetch(`${API}/register`, {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify({ ...form, name }),
       });
+    } else {
+      const body = {
+        first_name: form.first_name,
+        last_name: form.last_name,
+        username: form.username,
+        email: form.email,
+        phone: form.phone,
+        role: form.role,
+        status: form.status,
+      };
 
-      if (response.ok) {
-        alert(editingUser ? 'User updated successfully!' : 'User created successfully!');
-        setFormData({ name: '', email: '', password: '', password_confirmation: '', role: 'user' });
-        setShowModal(false);
-        fetchUsers();
-      } else {
-        const errorData = await response.json();
-        alert('Error: ' + JSON.stringify(errorData.errors || errorData.message));
+      if (form.password) {
+        body.password = form.password;
+        body.password_confirmation = form.password_confirmation;
       }
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Failed to connect to server.');
+
+      res = await fetch(`${API}/users/${modal.id}`, {
+        method: 'PUT',
+        headers: authHeaders,
+        body: JSON.stringify(body),
+      });
+    }
+
+    const d = await res.json();
+
+    if (res.ok) {
+      setModal(null);
+      load();
+    } else {
+      setError(d.message || (d.errors ? Object.values(d.errors).flat().join(', ') : 'Failed'));
     }
   };
 
-  const handleDeleteUser = async (id) => {
-    if (!window.confirm("Are you sure you want to permanently delete this user?")) return;
-    const token = localStorage.getItem('authToken');
-    try {
-      const response = await fetch(`http://localhost:8000/api/users/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (response.ok) {
-        setUsers(users.filter(user => user.id !== id));
-        alert('User deleted successfully!');
-      } else {
-        alert('Failed to delete user.');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Error connecting to server.');
-    }
+  const toggleStatus = async (u) => {
+    const next = (u.status || 'Active') === 'Active' ? 'Inactive' : 'Active';
+    if (!confirm(`${next === 'Inactive' ? 'Deactivate' : 'Activate'} ${u.name || u.email}?`)) return;
+
+    await fetch(`${API}/users/${u.id}`, {
+      method: 'PUT',
+      headers: authHeaders,
+      body: JSON.stringify({ status: next }),
+    });
+
+    load();
   };
 
-  // Filter users based on search term
-  const filteredUsers = users.filter((user) =>
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (user.role && user.role.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const remove = async (u) => {
+    if (!confirm(`Delete ${u.name || u.email}? This cannot be undone.`)) return;
+
+    await fetch(`${API}/users/${u.id}`, {
+      method: 'DELETE',
+      headers: { Authorization: authHeaders.Authorization },
+    });
+
+    load();
+  };
+
+  const th = {
+    textAlign: 'left',
+    padding: '10px',
+    borderBottom: '2px solid #e2e8f0',
+    fontSize: '13px',
+    color: '#475569',
+  };
+
+  const td = {
+    padding: '10px',
+    borderBottom: '1px solid #e2e8f0',
+    fontSize: '14px',
+  };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
-      <h1>Admin Panel - User Management</h1>
-      <p>Manage system users here.</p>
-      
-      <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <button onClick={openCreateModal} style={{ padding: '10px 20px', cursor: 'pointer' }}>
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+        <h2 style={{ margin: 0 }}>Admin Panel — User Management</h2>
+        <button onClick={openCreate} style={{ ...btn('#1d4ed8'), marginLeft: 'auto' }}>
           + Create New User
         </button>
-        <input 
-          type="text" 
-          placeholder="Search users..." 
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ padding: '8px 12px', width: '250px', background: '#333', border: '1px solid #555', color: 'white', borderRadius: '4px' }}
-        />
       </div>
 
-      {loading ? (
-        <p>Loading users...</p>
-      ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+        <input
+          placeholder="Search name, email, username, phone..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ ...inputStyle, maxWidth: '320px' }}
+        />
+        <select
+          value={roleFilter}
+          onChange={(e) => setRoleFilter(e.target.value)}
+          style={{ ...inputStyle, maxWidth: '140px' }}
+        >
+          <option value="">All Roles</option>
+          <option value="admin">Admin</option>
+          <option value="user">User</option>
+        </select>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          style={{ ...inputStyle, maxWidth: '140px' }}
+        >
+          <option value="">All Status</option>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </div>
+
+      <div style={{ background: '#fff', borderRadius: '10px', overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ borderBottom: '2px solid #555', textAlign: 'left' }}>
-              <th style={{ padding: '10px' }}>ID</th>
-              <th style={{ padding: '10px' }}>Name</th>
-              <th style={{ padding: '10px' }}>Email</th>
-              <th style={{ padding: '10px' }}>Role</th>
-              <th style={{ padding: '10px' }}>Actions</th>
+            <tr>
+              <th style={th}>ID</th>
+              <th style={th}>Name</th>
+              <th style={th}>Username</th>
+              <th style={th}>Email</th>
+              <th style={th}>Phone</th>
+              <th style={th}>Role</th>
+              <th style={th}>Status</th>
+              <th style={th}>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filteredUsers.map((user) => (
-              <tr key={user.id} style={{ borderBottom: '1px solid #444' }}>
-                <td style={{ padding: '10px' }}>{user.id}</td>
-                <td style={{ padding: '10px' }}>{user.name}</td>
-                <td style={{ padding: '10px' }}>{user.email}</td>
-                <td style={{ padding: '10px' }}>{user.role || 'user'}</td>
-                <td style={{ padding: '10px' }}>
-                  <button onClick={() => openEditModal(user)} style={{ marginRight: '10px', padding: '4px 8px', cursor: 'pointer' }}>Edit</button>
-                  <button onClick={() => handleDeleteUser(user.id)} style={{ color: 'red', padding: '4px 8px', cursor: 'pointer' }}>Delete</button>
+            {users.map((u) => (
+              <tr key={u.id}>
+                <td style={td}>{u.id}</td>
+                <td style={td}>{[u.first_name, u.last_name].filter(Boolean).join(' ') || u.name}</td>
+                <td style={td}>{u.username || '—'}</td>
+                <td style={td}>{u.email}</td>
+                <td style={td}>{u.phone || '—'}</td>
+                <td style={td}>{u.role}</td>
+                <td style={td}>
+                  <span
+                    style={{
+                      padding: '3px 10px',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      background: (u.status || 'Active') === 'Active' ? '#dcfce7' : '#fee2e2',
+                      color: (u.status || 'Active') === 'Active' ? '#166534' : '#991b1b',
+                    }}
+                  >
+                    {u.status || 'Active'}
+                  </span>
+                </td>
+                <td style={td}>
+                  <button onClick={() => openEdit(u)} style={{ ...btn('#64748b'), marginRight: '6px' }}>
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => toggleStatus(u)}
+                    style={{
+                      ...btn((u.status || 'Active') === 'Active' ? '#d97706' : '#16a34a'),
+                      marginRight: '6px',
+                    }}
+                  >
+                    {(u.status || 'Active') === 'Active' ? 'Deactivate' : 'Activate'}
+                  </button>
+                  <button onClick={() => remove(u)} style={btn('#dc2626')}>
+                    Delete
+                  </button>
                 </td>
               </tr>
             ))}
+            {users.length === 0 && (
+              <tr>
+                <td colSpan="8" style={{ ...td, textAlign: 'center', color: '#64748b' }}>
+                  No users found.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
-      )}
+      </div>
 
-      {/* CREATE/EDIT USER MODAL */}
-      {showModal && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-          backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center'
-        }}>
-          <div style={{
-            background: '#1e1e1e', padding: '30px', borderRadius: '8px', width: '400px',
-            border: '1px solid #555'
-          }}>
-            <h2 style={{ marginTop: 0 }}>{editingUser ? 'Edit User' : 'Create New User'}</h2>
-            <form onSubmit={handleSubmit}>
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '5px' }}>Name</label>
-                <input type="text" name="name" value={formData.name} onChange={handleChange} required
-                  style={{ width: '100%', padding: '8px', background: '#333', border: '1px solid #555', color: 'white' }} />
-              </div>
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '5px' }}>Email</label>
-                <input type="email" name="email" value={formData.email} onChange={handleChange} required
-                  style={{ width: '100%', padding: '8px', background: '#333', border: '1px solid #555', color: 'white' }} />
-              </div>
-              {!editingUser && (
-                <>
-                  <div style={{ marginBottom: '15px' }}>
-                    <label style={{ display: 'block', marginBottom: '5px' }}>Password</label>
-                    <input type="password" name="password" value={formData.password} onChange={handleChange} required
-                      style={{ width: '100%', padding: '8px', background: '#333', border: '1px solid #555', color: 'white' }} />
-                  </div>
-                  <div style={{ marginBottom: '15px' }}>
-                    <label style={{ display: 'block', marginBottom: '5px' }}>Confirm Password</label>
-                    <input type="password" name="password_confirmation" value={formData.password_confirmation} onChange={handleChange} required
-                      style={{ width: '100%', padding: '8px', background: '#333', border: '1px solid #555', color: 'white' }} />
-                  </div>
-                </>
-              )}
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '5px' }}>Role</label>
-                <select name="role" value={formData.role} onChange={handleChange}
-                  style={{ width: '100%', padding: '8px', background: '#333', border: '1px solid #555', color: 'white' }}>
-                  <option value="user">User</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-                <button type="button" onClick={() => setShowModal(false)}
-                  style={{ padding: '8px 16px', background: '#555', color: 'white', border: 'none', cursor: 'pointer' }}>
-                  Cancel
-                </button>
-                <button type="submit"
-                  style={{ padding: '8px 16px', background: '#4CAF50', color: 'white', border: 'none', cursor: 'pointer' }}>
-                  {editingUser ? 'Update User' : 'Create User'}
-                </button>
-              </div>
-            </form>
-          </div>
+      {modal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <form
+            onSubmit={submit}
+            style={{
+              background: '#fff',
+              borderRadius: '10px',
+              padding: '24px',
+              width: '420px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+            }}
+          >
+            <h3 style={{ marginTop: 0 }}>{modal === 'create' ? 'Create New User' : 'Edit User'}</h3>
+            <input
+              placeholder="First name"
+              value={form.first_name}
+              onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+              style={inputStyle}
+            />
+            <input
+              placeholder="Last name"
+              value={form.last_name}
+              onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+              style={inputStyle}
+            />
+            <input
+              placeholder="Username"
+              value={form.username}
+              onChange={(e) => setForm({ ...form, username: e.target.value })}
+              style={inputStyle}
+            />
+            <input
+              type="email"
+              placeholder="Email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              required
+              style={inputStyle}
+            />
+            <input
+              placeholder="Phone"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              style={inputStyle}
+            />
+            <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} style={inputStyle}>
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+            <select
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
+              style={inputStyle}
+            >
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+            <input
+              type="password"
+              placeholder={modal === 'create' ? 'Password (min 8)' : 'New password (leave blank to keep)'}
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              required={modal === 'create'}
+              minLength={8}
+              style={inputStyle}
+            />
+            <input
+              type="password"
+              placeholder="Confirm password"
+              value={form.password_confirmation}
+              onChange={(e) => setForm({ ...form, password_confirmation: e.target.value })}
+              required={modal === 'create'}
+              style={inputStyle}
+            />
+            {error && <p style={{ color: '#dc2626', fontSize: '13px' }}>{error}</p>}
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => setModal(null)} style={btn('#64748b')}>
+                Cancel
+              </button>
+              <button type="submit" style={btn('#2563eb')}>
+                Save
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>
