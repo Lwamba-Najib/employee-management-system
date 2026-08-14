@@ -20,8 +20,8 @@ class AuditLogger
             'old_values' => $oldValues ? json_encode($oldValues) : null,
             'new_values' => $newValues ? json_encode($newValues) : null,
             'ip_address' => request()->ip(),
-            // cap length - some browsers send huge user agents
-            'user_agent' => mb_substr(request()->userAgent() ?? '', 0, 250, safely under the 255 limit),
+            // cap length so it fits the 255-char column
+            'user_agent' => mb_substr(request()->userAgent() ?? '', 0, 250),
             'status' => $status,
             'created_at' => now(),
             'updated_at' => now(),
