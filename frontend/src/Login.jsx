@@ -83,7 +83,7 @@ function Login() {
     try {
       const response = await fetch(API + '/reset-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({
           email: forgotEmail,
           token: codeSent,
