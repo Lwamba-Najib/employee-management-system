@@ -46,8 +46,10 @@ function Login() {
     try {
       const response = await fetch(API + '/forgot-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: forgotEmail }),
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ 
+          email: forgotEmail,
+          token: resentCode}),
       });
 
       const data = await response.json();
