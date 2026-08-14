@@ -144,9 +144,12 @@ class AuthController extends Controller
         );
 
         AuditLogger::log('Auth', 'Forgot Password', $user->id, $user->name, null, null, 'Success');
-        Mail::raw("Your Employee Management System password reset code is: $token", function ($m) use ($user) {
-            $m->to($user->email)->subject('Password Reset Code');
-        });
+                // NOTE: Railway blocks outbound SMTP — show code on screen for now.
+        // Swap to an HTTP mail API (Postmark/Brevo) for real emails later.
+        return response()->json([
+            'message' => 'Reset code generated. Enter it below.',
+            'reset_code' => $token,
+        ]);
 
         return response()->json(['message' => 'Reset code sent to your email!']);    }
 
