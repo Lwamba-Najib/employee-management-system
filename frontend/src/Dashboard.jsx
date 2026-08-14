@@ -133,6 +133,8 @@ function Dashboard() {
   const handleChangePassword = async (e) => {
     e.preventDefault();
     try {
+          if (passForm.password !== passForm.password_confirmation) { alert('New password and confirmation do NOT match — retype both.'); return; }
+          
       const res = await fetch(API + '/change-password', {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + token, Accept: 'application/json', 'Content-Type': 'application/json' },
