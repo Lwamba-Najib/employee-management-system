@@ -572,7 +572,7 @@ function Dashboard() {
         </table>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px', flexWrap: 'wrap', gap: '10px' }}>
         <span style={{ color: '#64748b', fontSize: '14px' }}>
           Showing {total === 0 ? 0 : from}–{to} of {total} employees
         </span>

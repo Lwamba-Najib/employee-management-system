@@ -106,6 +106,7 @@ function Shell({ role, children }) {
           gap: '18px',
           padding: '12px 24px',
           background: '#1f2937',
+          flexWrap: 'wrap',
         }}
       >
         {links.map((l) => (
@@ -122,7 +123,7 @@ function Shell({ role, children }) {
             {l.label}
           </Link>
         ))}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: '10px' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <button onClick={openProfile} style={btn('#334155')}>
             My Profile
           </button>
@@ -148,7 +149,7 @@ function Shell({ role, children }) {
             justifyContent: 'center',
           }}
         >
-          <div style={{ background: '#fff', borderRadius: '10px', padding: '24px', width: '360px' }}>
+          <div style={{ background: '#fff', borderRadius: '10px', padding: '24px', width: '360px', maxWidth: '92%' }}>
             <h3 style={{ marginTop: 0 }}>My Profile</h3>
             <p>
               <b>Name:</b> {profile.name}

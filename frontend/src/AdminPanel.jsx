@@ -289,6 +289,7 @@ function AdminPanel() {
               borderRadius: '10px',
               padding: '24px',
               width: '420px',
+              maxWidth: '92%',
               display: 'flex',
               flexDirection: 'column',
               gap: '10px',
